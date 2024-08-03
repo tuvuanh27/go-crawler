@@ -143,14 +143,6 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 			return echo.NewHTTPError(http.StatusBadRequest, err)
 		}
 
-		//filePath := "./template/aliexpress-full.xlsx"
-		//f, err := excelize.OpenFile(filePath)
-		//if err != nil {
-		//	return c.JSON(http.StatusInternalServerError, map[string]string{
-		//		"error": "Failed to open Excel file",
-		//	})
-		//}
-
 		f := excelize.NewFile()
 
 		sheetName := "Aliexpress"
@@ -167,17 +159,17 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 			Fill: excelize.Fill{
 				Type:    "pattern",
 				Pattern: 1, // Ensure the pattern type is set
-				Color:   []string{"#5eeb34"},
+				Color:   []string{"##54ff52"},
 			},
 		})
 
-		styleGrey, _ := f.NewStyle(&excelize.Style{
-			Fill: excelize.Fill{
-				Type:    "pattern",
-				Pattern: 1, // Ensure the pattern type is set
-				Color:   []string{"#85888c"},
-			},
-		})
+		//styleGrey, _ := f.NewStyle(&excelize.Style{
+		//	Fill: excelize.Fill{
+		//		Type:    "pattern",
+		//		Pattern: 1, // Ensure the pattern type is set
+		//		Color:   []string{"#f0f0f0"},
+		//	},
+		//})
 
 		if request.ExportType == dtos.ExportFull {
 			f.SetCellValue(sheetName, "A1", "Product ID")
@@ -324,7 +316,7 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 
 			for _, product := range result.Products {
 				if row%2 == 0 {
-					err = f.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("AH%d", row), styleGrey)
+					err = f.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("AH%d", row), styleGreen)
 					if err != nil {
 						return err
 					}

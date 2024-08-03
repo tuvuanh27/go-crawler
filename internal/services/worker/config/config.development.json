@@ -1,0 +1,52 @@
+{
+  "serviceName":"crawler_worker",
+  "deliveryType":"http",
+  "context":{
+    "timeout":20
+  },
+  "rabbitMq":{
+    "user":"guest",
+    "password":"guest",
+    "host":"localhost",
+    "port":5672,
+    "exchangeName":"crawler",
+    "kind":"direct",
+    "concurrency": 1
+  },
+  "echo":{
+    "port":":5002",
+    "development":true,
+    "timeout":30,
+    "basePath":"/api/v1",
+    "host":"http://localhost",
+    "debugHeaders":true,
+    "httpClientDebug":true,
+    "debugErrorsResponse":true,
+    "ignoreLogUrls":[
+      "metrics"
+    ]
+  },
+  "grpc":{
+    "port":":6600",
+    "host":"localhost",
+    "development":true
+  },
+  "logger":{
+    "level":"debug"
+  },
+  "jaeger":{
+    "server":"http://localhost:14268",
+    "serviceName":"identity_service",
+    "tracerName":"identity_tracer"
+  },
+  "mongoConfig":{
+    "uri":"mongodb://root:root@localhost:27017/?authSource=admin",
+    "databaseName":"crawler"
+  },
+  "openAliexpress": {
+    "url": "https://api-sg.aliexpress.com/",
+    "appKey": 508510,
+    "appSecret": "iIde326oAIUOu8BNLN9hIJepJXmeqX3g",
+    "appCode": "3_508510_UREAaXFJGr426QijHw8bOrtP1730"
+  }
+}

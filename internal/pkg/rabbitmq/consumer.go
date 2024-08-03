@@ -2,8 +2,8 @@ package rabbitmq
 
 import (
 	"context"
+	"flag"
 	"fmt"
-	"github.com/ahmetb/go-linq/v3"
 	"github.com/iancoleman/strcase"
 	jsoniter "github.com/json-iterator/go"
 	"github.com/streadway/amqp"
@@ -20,18 +20,19 @@ import (
 //go:generate mockery --name IConsumer
 type IConsumer[T any] interface {
 	ConsumeMessage(msg interface{}, dependencies T) error
-	IsConsumed(msg interface{}) bool
+	worker(deliveries <-chan amqp.Delivery, dependencies T, consumerHandlerName, queueName string)
 }
 
-var consumedMessages []string
+var consumerTag = flag.String("consumer-tag", "simple-consumer", "consumer tag")
 
 type Consumer[T any] struct {
 	cfg          *RabbitMQConfig
-	conn         *amqp.Connection
+	mq           IRabbitMQ
 	log          logger.ILogger
 	handler      func(queue string, msg amqp.Delivery, dependencies T) error
 	jaegerTracer trace.Tracer
 	ctx          context.Context
+	concurrency  int
 }
 
 func (c Consumer[T]) ConsumeMessage(msg interface{}, dependencies T) error {
@@ -39,7 +40,9 @@ func (c Consumer[T]) ConsumeMessage(msg interface{}, dependencies T) error {
 	strName := strings.Split(runtime.FuncForPC(reflect.ValueOf(c.handler).Pointer()).Name(), ".")
 	var consumerHandlerName = strName[len(strName)-1]
 
-	ch, err := c.conn.Channel()
+	conn := c.mq.GetConn()
+
+	ch, err := conn.Channel()
 	if err != nil {
 		c.log.Error("Error in opening channel to consume message")
 		return err
@@ -65,9 +68,9 @@ func (c Consumer[T]) ConsumeMessage(msg interface{}, dependencies T) error {
 
 	q, err := ch.QueueDeclare(
 		fmt.Sprintf("%s_%s", snakeTypeName, "queue"), // name
-		false, // durable
+		true,  // durable
 		false, // delete when unused
-		true,  // exclusive
+		false, // exclusive
 		false, // no-wait
 		nil,   // arguments
 	)
@@ -89,13 +92,13 @@ func (c Consumer[T]) ConsumeMessage(msg interface{}, dependencies T) error {
 	}
 
 	deliveries, err := ch.Consume(
-		q.Name, // queue
-		"",     // consumer
-		false,  // auto ack
-		false,  // exclusive
-		false,  // no local
-		false,  // no wait
-		nil,    // args
+		q.Name,       // queue
+		*consumerTag, // consumer
+		false,        // auto ack
+		false,        // exclusive
+		false,        // no local
+		false,        // no wait
+		nil,          // args
 	)
 
 	if err != nil {
@@ -103,35 +106,50 @@ func (c Consumer[T]) ConsumeMessage(msg interface{}, dependencies T) error {
 		return err
 	}
 
-	go func() {
+	c.log.Infof("Waiting for messages in queue :%s. To exit press CTRL+C", q.Name)
 
+	// Create a worker pool
+	for i := 0; i < c.concurrency; i++ {
+		go c.worker(deliveries, dependencies, consumerHandlerName, q.Name)
+	}
+
+	// Block forever
+	select {
+	case <-c.ctx.Done():
+		defer func(ch *amqp.Channel) {
+			err := ch.Close()
+			if err != nil {
+				c.log.Errorf("failed to close channel for queue: %s", q.Name)
+			}
+		}(ch)
+		c.log.Infof("channel closed for queue: %s", q.Name)
+	}
+
+	return nil
+}
+
+func (c Consumer[T]) worker(deliveries <-chan amqp.Delivery, dependencies T, consumerHandlerName string, queueName string) {
+
+	for {
 		select {
 		case <-c.ctx.Done():
-			defer func(ch *amqp.Channel) {
-				err := ch.Close()
-				if err != nil {
-					c.log.Errorf("failed to close channel closed for for queue: %s", q.Name)
-				}
-			}(ch)
-			c.log.Infof("channel closed for for queue: %s", q.Name)
+			c.log.Infof("context done for queue: %s", queueName)
 			return
 
 		case delivery, ok := <-deliveries:
 			{
 				if !ok {
-					c.log.Errorf("NOT OK deliveries channel closed for queue: %s", q.Name)
+					c.log.Errorf("NOT OK deliveries channel closed for queue: %s", queueName)
 					return
 				}
 
 				// Extract headers
 				c.ctx = otel.ExtractAMQPHeaders(c.ctx, delivery.Headers)
 
-				err := c.handler(q.Name, delivery, dependencies)
+				err := c.handler(queueName, delivery, dependencies)
 				if err != nil {
 					c.log.Error(err.Error())
 				}
-
-				consumedMessages = append(consumedMessages, snakeTypeName)
 
 				_, span := c.jaegerTracer.Start(c.ctx, consumerHandlerName)
 
@@ -143,7 +161,7 @@ func (c Consumer[T]) ConsumeMessage(msg interface{}, dependencies T) error {
 
 				span.SetAttributes(attribute.Key("message-id").String(delivery.MessageId))
 				span.SetAttributes(attribute.Key("correlation-id").String(delivery.CorrelationId))
-				span.SetAttributes(attribute.Key("queue").String(q.Name))
+				span.SetAttributes(attribute.Key("queue").String(queueName))
 				span.SetAttributes(attribute.Key("exchange").String(delivery.Exchange))
 				span.SetAttributes(attribute.Key("routing-key").String(delivery.RoutingKey))
 				span.SetAttributes(attribute.Key("ack").Bool(true))
@@ -156,43 +174,15 @@ func (c Consumer[T]) ConsumeMessage(msg interface{}, dependencies T) error {
 				span.End()
 
 				err = delivery.Ack(false)
+				c.log.Infof("Ack for delivery: %v", string(delivery.Body))
 				if err != nil {
 					c.log.Errorf("We didn't get a ack for delivery: %v", string(delivery.Body))
 				}
 			}
 		}
-	}()
-
-	c.log.Infof("Waiting for messages in queue :%s. To exit press CTRL+C", q.Name)
-
-	return nil
-}
-
-func (c Consumer[T]) IsConsumed(msg interface{}) bool {
-	timeOutTime := 20 * time.Second
-	startTime := time.Now()
-	timeOutExpired := false
-	isConsumed := false
-
-	for {
-		if timeOutExpired {
-			return false
-		}
-		if isConsumed {
-			return true
-		}
-
-		time.Sleep(time.Second * 2)
-
-		typeName := reflect.TypeOf(msg).Name()
-		snakeTypeName := strcase.ToSnake(typeName)
-
-		isConsumed = linq.From(consumedMessages).Contains(snakeTypeName)
-
-		timeOutExpired = time.Now().Sub(startTime) > timeOutTime
 	}
 }
 
-func NewConsumer[T any](ctx context.Context, cfg *RabbitMQConfig, conn *amqp.Connection, log logger.ILogger, jaegerTracer trace.Tracer, handler func(queue string, msg amqp.Delivery, dependencies T) error) IConsumer[T] {
-	return &Consumer[T]{ctx: ctx, cfg: cfg, conn: conn, log: log, jaegerTracer: jaegerTracer, handler: handler}
+func NewConsumer[T any](ctx context.Context, cfg *RabbitMQConfig, mq IRabbitMQ, log logger.ILogger, jaegerTracer trace.Tracer, handler func(queue string, msg amqp.Delivery, dependencies T) error) IConsumer[T] {
+	return &Consumer[T]{ctx: ctx, cfg: cfg, mq: mq, log: log, jaegerTracer: jaegerTracer, handler: handler, concurrency: cfg.Concurrency}
 }

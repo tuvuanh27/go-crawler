@@ -24,7 +24,7 @@ func (r *GenericRepository[T]) Add(ctx context.Context, entity *T) error {
 	return err
 }
 
-func (r *GenericRepository[T]) AddAll(ctx context.Context, entities []T) error {
+func (r *GenericRepository[T]) AddAll(ctx context.Context, entities []*T) error {
 	var documents []interface{}
 	for _, entity := range entities {
 		documents = append(documents, entity)
@@ -66,18 +66,24 @@ func (r *GenericRepository[T]) GetAll(ctx context.Context, filter interface{}, o
 	if err != nil {
 		return nil, err
 	}
-	defer cursor.Close(ctx)
+
+	defer func(cursor *mongo.Cursor, ctx context.Context) {
+		err = cursor.Close(ctx)
+		if err != nil {
+
+		}
+	}(cursor, ctx)
 
 	var results []*T
 	for cursor.Next(ctx) {
 		var result T
-		if err := cursor.Decode(&result); err != nil {
+		if err = cursor.Decode(&result); err != nil {
 			return nil, err
 		}
 		results = append(results, &result)
 	}
 
-	if err := cursor.Err(); err != nil {
+	if err = cursor.Err(); err != nil {
 		return nil, err
 	}
 

@@ -17,7 +17,7 @@ func ValidateBearerToken() echo.MiddlewareFunc {
 
 			// Ignore check authentication in test
 			env := os.Getenv("APP_ENV")
-			if env == "test" {
+			if env == "local" {
 				return next(c)
 			}
 

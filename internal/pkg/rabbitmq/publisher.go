@@ -26,7 +26,7 @@ var publishedMessages []string
 
 type Publisher struct {
 	cfg          *RabbitMQConfig
-	conn         *amqp.Connection
+	mq           IRabbitMQ
 	log          logger.ILogger
 	jaegerTracer trace.Tracer
 	ctx          context.Context
@@ -50,14 +50,20 @@ func (p Publisher) PublishMessage(msg interface{}) error {
 	// Inject the context in the headers
 	headers := otel.InjectAMQPHeaders(ctx)
 
-	channel, err := p.conn.Channel()
+	conn := p.mq.GetConn()
+	if conn == nil {
+		p.log.Error("Error in getting connection to publish message")
+		return err
+	}
+
+	channel, err := conn.Channel()
 	if err != nil {
 		p.log.Error("Error in opening channel to consume message")
 		return err
 	}
 
 	defer func(channel *amqp.Channel) {
-		err := channel.Close()
+		err = channel.Close()
 		if err != nil {
 			p.log.Error("Error in closing channel to publish message")
 		}
@@ -110,7 +116,7 @@ func (p Publisher) PublishMessage(msg interface{}) error {
 		return err
 	}
 
-	p.log.Infof("Published message: %s", publishingMsg.Body)
+	p.log.Infof("Published message - exchange: %s - %s", snakeTypeName, publishingMsg.Body)
 	span.SetAttributes(attribute.Key("message-id").String(publishingMsg.MessageId))
 	span.SetAttributes(attribute.Key("correlation-id").String(publishingMsg.CorrelationId))
 	span.SetAttributes(attribute.Key("exchange").String(snakeTypeName))
@@ -132,6 +138,6 @@ func (p Publisher) IsPublished(msg interface{}) bool {
 	return isPublished
 }
 
-func NewPublisher(ctx context.Context, cfg *RabbitMQConfig, conn *amqp.Connection, log logger.ILogger, jaegerTracer trace.Tracer) IPublisher {
-	return &Publisher{ctx: ctx, cfg: cfg, conn: conn, log: log, jaegerTracer: jaegerTracer}
+func NewPublisher(ctx context.Context, cfg *RabbitMQConfig, mq IRabbitMQ, log logger.ILogger, jaegerTracer trace.Tracer) IPublisher {
+	return &Publisher{ctx: ctx, cfg: cfg, mq: mq, log: log, jaegerTracer: jaegerTracer}
 }

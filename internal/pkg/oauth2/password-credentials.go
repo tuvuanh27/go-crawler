@@ -13,7 +13,8 @@ import (
 	"github.com/labstack/echo/v4"
 	uuid "github.com/satori/go.uuid"
 	"github.com/tuvuanh27/go-crawler/internal/pkg/utils"
-	"gorm.io/gorm"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 	"log"
 	"net/http"
 	"sync"
@@ -68,14 +69,14 @@ func clientStore(clients ...*models.Client) oauth2.ClientStore {
 }
 
 // ref: https://github.com/go-oauth2/oauth2
-func RunOauthServer(e *echo.Echo, gorm *gorm.DB) {
+func RunOauthServer(e *echo.Echo, mongo *mongo.Database) {
 
 	manager.MapClientStorage(clientStore(clients...))
 
 	srv.SetPasswordAuthorizationHandler(func(ctx context.Context, clientID, username, password string) (userID string, err error) {
 
 		u := User{}
-		gorm.Where("user_name = ?", username).First(&u)
+		mongo.Collection("users").FindOne(ctx, bson.M{"user_name": username}).Decode(&u)
 
 		// now use p
 		isMatch, err := utils.ComparePasswords(u.Password, password)

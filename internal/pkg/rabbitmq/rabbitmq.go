@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 	"github.com/cenkalti/backoff/v4"
-	log "github.com/sirupsen/logrus"
 	"github.com/streadway/amqp"
+	"github.com/tuvuanh27/go-crawler/internal/pkg/logger"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -18,20 +19,53 @@ type RabbitMQConfig struct {
 	ExchangeName string
 	Kind         string
 	Retry        string
+	Concurrency  int
 }
 
-func NewRabbitMQConn(cfg *RabbitMQConfig, ctx context.Context) (*amqp.Connection, error) {
+type rabbitMQ struct {
+	cfg            *RabbitMQConfig
+	ctx            context.Context
+	Conn           *amqp.Connection
+	log            logger.ILogger
+	lockConnection sync.Mutex
+}
+
+type IRabbitMQ interface {
+	NewRabbitMQConn(ctx context.Context, log logger.ILogger) error
+	GetConn() *amqp.Connection
+}
+
+func NewRabbitMQ(cfg *RabbitMQConfig, log logger.ILogger, ctx context.Context) IRabbitMQ {
+	return &rabbitMQ{
+		cfg: cfg,
+		log: log,
+		ctx: ctx,
+	}
+}
+
+func (r *rabbitMQ) GetConn() *amqp.Connection {
+	return r.Conn
+}
+
+func (r *rabbitMQ) NewRabbitMQConn(ctx context.Context, log logger.ILogger) error {
+	r.lockConnection.Lock()
+	defer r.lockConnection.Unlock()
+
+	if r.Conn != nil && !r.Conn.IsClosed() {
+		return nil
+	}
+
 	connAddr := fmt.Sprintf(
 		"amqp://%s:%s@%s:%d/",
-		cfg.User,
-		cfg.Password,
-		cfg.Host,
-		cfg.Port,
+		r.cfg.User,
+		r.cfg.Password,
+		r.cfg.Host,
+		r.cfg.Port,
 	)
 
 	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 10 * time.Second       // Maximum time to retry
-	maxRetries, err := strconv.Atoi(cfg.Retry) // Number of retries (including the initial attempt)
+	bo.MaxElapsedTime = 10 * time.Second         // Maximum time to retry
+	maxRetries, err := strconv.Atoi(r.cfg.Retry) // Number of retries (including the initial attempt)
 	if err != nil {
 		maxRetries = 5
 	}
@@ -49,18 +83,19 @@ func NewRabbitMQConn(cfg *RabbitMQConfig, ctx context.Context) (*amqp.Connection
 		return nil
 	}, backoff.WithMaxRetries(bo, uint64(maxRetries-1)))
 
-	log.Info("Connected to RabbitMQ")
+	log.Debug("Connected to RabbitMQ")
+	r.Conn = conn
 
 	go func() {
 		select {
 		case <-ctx.Done():
-			err := conn.Close()
+			err = conn.Close()
 			if err != nil {
 				log.Error("Failed to close RabbitMQ connection")
 			}
-			log.Info("RabbitMQ connection is closed")
+			log.Debug("RabbitMQ connection is closed")
 		}
 	}()
 
-	return conn, err
+	return err
 }

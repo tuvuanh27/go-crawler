@@ -249,7 +249,7 @@ func (s *OpenAliexpressService) GetProduct(productID string) (*model.Product, er
 	}
 
 	product := &model.Product{
-		ProductId:         productID,
+		ProductId:         GetProductId(response.AliexpressDSProductGetResponse.Result.ProductIDConverterResult),
 		Title:             response.AliexpressDSProductGetResponse.Result.AEItemBaseInfoDto.Subject,
 		Description:       response.AliexpressDSProductGetResponse.Result.AEItemBaseInfoDto.Detail,
 		Specifications:    specifications,
@@ -385,4 +385,24 @@ func getPrice(skus []model.Sku) float64 {
 
 	// round to 2 decimal places
 	return math.Round((totalPrice/float64(len(skus)))*10) / 10
+}
+
+func GetProductId(productIdConvert ProductIDConverterResult) string {
+	if productIdConvert.SubProductID != "" {
+		// parse json string to struct
+
+		type SubProductID struct {
+			US int `json:"US"`
+		}
+
+		var idConvert SubProductID
+		err := json.Unmarshal([]byte(productIdConvert.SubProductID), &idConvert)
+		if err != nil {
+			return strconv.Itoa(productIdConvert.MainProductID)
+		}
+
+		return strconv.Itoa(idConvert.US)
+
+	}
+	return strconv.Itoa(productIdConvert.MainProductID)
 }

@@ -374,7 +374,7 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 				if mapColor != nil {
 					for key, color := range *mapColor {
 						f.SetCellValue(sheetName, fmt.Sprintf("%s%d", varColorCol[colorIndex], row), color)
-						f.SetCellValue(sheetName, fmt.Sprintf("%s%d", varPicColorCol[colorIndex], row), product.GetImageByColor(key))
+						f.SetCellValue(sheetName, fmt.Sprintf("%s%d", varPicColorCol[colorIndex], row), utils.NewLink(product.GetImageByColor(key)))
 						colorIndex++
 					}
 				}

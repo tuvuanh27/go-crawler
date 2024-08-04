@@ -255,7 +255,7 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 					f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), utils.ConvertSpecificationsToHTML(product.Specifications))
 					f.SetCellValue(sheetName, fmt.Sprintf("F%d", row), color)
 					f.SetCellValue(sheetName, fmt.Sprintf("G%d", row), size)
-					f.SetCellValue(sheetName, fmt.Sprintf("H%d", row), utils.NewLink(mainImage))
+					f.SetCellValue(sheetName, fmt.Sprintf("H%d", row), mainImage)
 
 					// Ensure images have the expected length
 					if len(images) > 1 {
@@ -374,7 +374,7 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 				if mapColor != nil {
 					for key, color := range *mapColor {
 						f.SetCellValue(sheetName, fmt.Sprintf("%s%d", varColorCol[colorIndex], row), color)
-						f.SetCellValue(sheetName, fmt.Sprintf("%s%d", varPicColorCol[colorIndex], row), utils.NewLink(product.GetImageByColor(key)))
+						f.SetCellValue(sheetName, fmt.Sprintf("%s%d", varPicColorCol[colorIndex], row), product.GetImageByColor(key))
 						colorIndex++
 					}
 				}

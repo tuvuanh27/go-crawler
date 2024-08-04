@@ -8,7 +8,6 @@ import (
 	"html"
 	"math/rand"
 	"strings"
-	"time"
 )
 
 func ConvertSpecificationsToHTML(specs []model.Specification) string {
@@ -31,21 +30,11 @@ func ConvertSpecificationsToHTML(specs []model.Specification) string {
 }
 
 func RandomString(n int) string {
-	// Seed the random number generator to ensure different results each run
-	rand.Seed(time.Now().UnixNano())
-
-	// Define the range of characters (a-z, A-Z, 0-9)
-	const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-
-	// Create a byte slice of length n
-	b := make([]byte, n)
-
-	// Populate the byte slice with random characters
+	var letterRunes = []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
+	b := make([]rune, n)
 	for i := range b {
-		b[i] = chars[rand.Intn(len(chars))]
+		b[i] = letterRunes[rand.Intn(len(letterRunes))]
 	}
-
-	// Return the random string
 	return string(b)
 }
 
@@ -65,8 +54,7 @@ func GetSortedImages(images []model.Image) []string {
 		}).
 		ToSlice(&images)
 	for _, img := range images {
-		newUrl := NewLink(img.Url)
-		imgs = append(imgs, newUrl)
+		imgs = append(imgs, img.Url)
 	}
 
 	i := 0

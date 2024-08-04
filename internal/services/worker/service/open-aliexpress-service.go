@@ -9,6 +9,7 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/tuvuanh27/go-crawler/internal/pkg/logger"
 	"github.com/tuvuanh27/go-crawler/internal/pkg/model"
+	"github.com/tuvuanh27/go-crawler/internal/pkg/utils"
 	service "github.com/tuvuanh27/go-crawler/internal/services/worker/service/interface"
 	"math"
 	"sort"
@@ -215,13 +216,15 @@ func (s *OpenAliexpressService) GetProduct(productID string) (*model.Product, er
 		})
 	}
 
+	variation := exactVariant(response.AliexpressDSProductGetResponse.Result.AEItemSkuInfoDtos.AEItemSkuInfoDTO)
+
 	for _, v := range response.AliexpressDSProductGetResponse.Result.AEItemSkuInfoDtos.AEItemSkuInfoDTO {
 		skuImage := ""
 		skuColorId := ""
 		skuSizeId := ""
 		for _, skuProperty := range v.AESKUPropertyDtos.AESKUPropertyDTO {
 			if skuProperty.SKUImage != "" {
-				skuImage = skuProperty.SKUImage
+				skuImage = findImage(variation.Colors, strconv.Itoa(skuProperty.PropertyValueID))
 				skuColorId = strconv.Itoa(skuProperty.PropertyValueID)
 			} else {
 				skuSizeId = strconv.Itoa(skuProperty.PropertyValueID)
@@ -243,7 +246,7 @@ func (s *OpenAliexpressService) GetProduct(productID string) (*model.Product, er
 	arrImages := strings.Split(response.AliexpressDSProductGetResponse.Result.AEMultimediaInfoDto.ImageUrls, ";")
 	for i, v := range arrImages {
 		images = append(images, model.Image{
-			Url:    v,
+			Url:    utils.NewLink(v),
 			ZIndex: i,
 		})
 	}
@@ -257,7 +260,7 @@ func (s *OpenAliexpressService) GetProduct(productID string) (*model.Product, er
 		Skus:              skus,
 		Price:             getPrice(skus),
 		Images:            images,
-		Variation:         exactVariant(response.AliexpressDSProductGetResponse.Result.AEItemSkuInfoDtos.AEItemSkuInfoDTO),
+		Variation:         variation,
 		Seller: model.Seller{
 			StoreId:             strconv.Itoa(response.AliexpressDSProductGetResponse.Result.AEStoreInfo.StoreID),
 			StoreName:           response.AliexpressDSProductGetResponse.Result.AEStoreInfo.StoreName,
@@ -342,7 +345,7 @@ func exactVariant(itemSkuInfo []AEItemSkuInfoDTO) model.Variation {
 					ValueId:   strconv.Itoa(skuProperty.PropertyValueID),
 					SkuPropId: strconv.Itoa(skuProperty.SKUPropertyID),
 					Name:      name,
-					Image:     skuProperty.SKUImage,
+					Image:     utils.NewLink(skuProperty.SKUImage),
 				})
 			} else {
 				if !isExistSize && !isColor {
@@ -350,7 +353,7 @@ func exactVariant(itemSkuInfo []AEItemSkuInfoDTO) model.Variation {
 						ValueId:   strconv.Itoa(skuProperty.PropertyValueID),
 						SkuPropId: strconv.Itoa(skuProperty.SKUPropertyID),
 						Name:      skuProperty.SKUPropertyValue,
-						Image:     skuProperty.SKUImage,
+						Image:     utils.NewLink(skuProperty.SKUImage),
 					})
 				}
 			}
@@ -405,4 +408,13 @@ func GetProductId(productIdConvert ProductIDConverterResult) string {
 
 	}
 	return strconv.Itoa(productIdConvert.MainProductID)
+}
+
+func findImage(colorsVar []model.VariationType, colorId string) string {
+	for _, color := range colorsVar {
+		if color.ValueId == colorId {
+			return color.Image
+		}
+	}
+	return ""
 }

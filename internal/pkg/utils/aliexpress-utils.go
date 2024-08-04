@@ -50,6 +50,10 @@ func RandomString(n int) string {
 }
 
 func NewLink(link string) string {
+	if len(link) < 4 {
+		return link
+	}
+
 	return link[:len(link)-4] + "/" + RandomString(13) + ".jpg"
 }
 

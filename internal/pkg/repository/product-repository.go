@@ -82,6 +82,7 @@ func (p *ProductRepository) GetPagination(ctx context.Context, page, limit uint,
 	opts := options.Find().SetSkip(int64((page - 1) * limit)).SetLimit(int64(limit)).SetSort(bson.D{{"updated_at", -1}, {"product_id", -1}})
 	filter := bson.M{
 		"product_type_source": filterOptions.ProductTypeSource,
+		"price":               bson.M{"$gt": 0},
 	}
 
 	if filterOptions.StartDate > 0 && filterOptions.EndDate > 0 {
@@ -110,6 +111,7 @@ func (p *ProductRepository) GetPagination(ctx context.Context, page, limit uint,
 func (p *ProductRepository) GetAllByType(ctx context.Context, filterOptions *interfaces.GetProductFilterOptions) ([]*model.Product, error) {
 	filter := bson.M{
 		"product_type_source": filterOptions.ProductTypeSource,
+		"price":               bson.M{"$gt": 0},
 	}
 
 	if filterOptions.StartDate > 0 && filterOptions.EndDate > 0 {

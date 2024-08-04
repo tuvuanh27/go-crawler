@@ -198,7 +198,7 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 				// Use fmt.Sprintf for correct row conversion
 				f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), product.ProductId+"-TPC")
 				f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), product.Title)
-				f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), product.Price)
+				f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), utils.Round2Decimals(product.Price))
 				f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), product.GetVariationType())
 				f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), utils.ConvertSpecificationsToHTML(product.Specifications))
 
@@ -327,7 +327,7 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 
 				f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), product.ProductId+"-TPC")
 				f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), product.Title)
-				f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), product.Price)
+				f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), utils.Round2Decimals(product.Price))
 				f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), product.GetVariationType())
 				f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), utils.ConvertSpecificationsToHTML(product.Specifications))
 

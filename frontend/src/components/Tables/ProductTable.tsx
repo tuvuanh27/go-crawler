@@ -17,7 +17,7 @@ export default function ProductTable({ products }: Props) {
 
   function getPrice(product: Product): number {
     return (
-      product.price ||
+      Math.round( product.price * 10) / 10 ||
       product.originalPrice ||
       +product.skus[0]?.promotionPrice ||
       0

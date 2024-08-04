@@ -10,6 +10,7 @@ import (
 	"github.com/tuvuanh27/go-crawler/internal/pkg/logger"
 	"github.com/tuvuanh27/go-crawler/internal/pkg/model"
 	service "github.com/tuvuanh27/go-crawler/internal/services/worker/service/interface"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -373,5 +374,7 @@ func getPrice(skus []model.Sku) float64 {
 			totalPrice += price
 		}
 	}
-	return totalPrice / float64(len(skus))
+
+	// round to 2 decimal places
+	return math.Round((totalPrice/float64(len(skus)))*10) / 10
 }

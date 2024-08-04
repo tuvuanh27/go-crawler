@@ -19,7 +19,7 @@ export default function ProductTable({ products }: Props) {
     return (
       product.price ||
       product.originalPrice ||
-      +product.skus[0].promotionPrice ||
+      +product.skus[0]?.promotionPrice ||
       0
     );
   }

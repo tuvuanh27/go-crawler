@@ -163,13 +163,13 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 			},
 		})
 
-		//styleGrey, _ := f.NewStyle(&excelize.Style{
-		//	Fill: excelize.Fill{
-		//		Type:    "pattern",
-		//		Pattern: 1, // Ensure the pattern type is set
-		//		Color:   []string{"#f0f0f0"},
-		//	},
-		//})
+		styleGrey, _ := f.NewStyle(&excelize.Style{
+			Fill: excelize.Fill{
+				Type:    "pattern",
+				Pattern: 1, // Ensure the pattern type is set
+				Color:   []string{"#f0f0f0"},
+			},
+		})
 
 		if request.ExportType == dtos.ExportFull {
 			f.SetCellValue(sheetName, "A1", "Product ID")
@@ -316,7 +316,7 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 
 			for _, product := range result.Products {
 				if row%2 == 0 {
-					err = f.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("AH%d", row), styleGreen)
+					err = f.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("AH%d", row), styleGrey)
 					if err != nil {
 						return err
 					}

@@ -357,7 +357,7 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 				f.SetCellValue(sheetName, fmt.Sprintf("O%d", row), product.Seller.StoreName)
 				f.SetCellValue(sheetName, fmt.Sprintf("P%d", row), rating)
 
-				f.SetCellValue(sheetName, fmt.Sprintf("Q%d", row), product.GetVariationType())
+				f.SetCellValue(sheetName, fmt.Sprintf("Q%d", row), product.GetVariationCustomType())
 				mapSize := product.MapSize(9)
 				mapColor := product.MapColor(4)
 

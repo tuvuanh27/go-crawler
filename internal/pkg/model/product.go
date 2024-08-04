@@ -105,6 +105,25 @@ func (u *Product) GetVariationType() string {
 	}
 }
 
+func (u *Product) GetVariationCustomType() string {
+	numSize := len(u.Variation.Sizes)
+	numColor := len(u.Variation.Colors)
+
+	if numSize <= 1 && numColor <= 1 {
+		// This checks if both size and color have 0 or 1 variation
+		return "0 color - 0 size"
+	} else if numSize > 1 && numColor <= 1 {
+		// This checks if there are multiple sizes and 0 or 1 color
+		return "sizes"
+	} else if numSize <= 1 {
+		// This checks if there are multiple colors and 0 or 1 size
+		return "colors"
+	} else {
+		// This is for the case where both size and color have multiple variations
+		return "sizes-colors"
+	}
+}
+
 func (u *Product) GetRating() float64 {
 	// average of 3 ratings
 	shippingRating, _ := strconv.ParseFloat(u.Seller.ShippingRating, 64)

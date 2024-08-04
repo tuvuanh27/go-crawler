@@ -371,13 +371,13 @@ func getPrice(skus []model.Sku) float64 {
 	var skuPrice float64 = 0
 	// if sku.Price is empty, get PromotionPrice
 
-	if skus[0].PromotionPrice != "" {
-		skuPrice, _ = strconv.ParseFloat(skus[0].PromotionPrice, 64)
-	} else {
-		skuPrice, _ = strconv.ParseFloat(skus[0].Price, 64)
-	}
-
 	for _, sku := range skus {
+		if sku.PromotionPrice != "" {
+			skuPrice, _ = strconv.ParseFloat(sku.PromotionPrice, 64)
+		} else {
+			skuPrice, _ = strconv.ParseFloat(sku.Price, 64)
+		}
+
 		if sku.Price != "" {
 			totalPrice += skuPrice
 		}

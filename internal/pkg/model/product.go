@@ -91,17 +91,21 @@ func (u *Product) MarshalBSON() ([]byte, error) {
 }
 
 func (u *Product) GetVariationType() string {
-	hasSize := len(u.Variation.Sizes) > 0
-	hasColor := len(u.Variation.Colors) > 0
+	numSize := len(u.Variation.Sizes)
+	numColor := len(u.Variation.Colors)
 
-	if hasSize && hasColor {
-		return "sizes-colors"
-	} else if hasSize {
+	if numSize <= 1 && numColor <= 1 {
+		// This checks if both size and color have 0 or 1 variation
+		return "0 color - 0 size"
+	} else if numSize > 1 && numColor <= 1 {
+		// This checks if there are multiple sizes and 0 or 1 color
 		return "sizes"
-	} else if hasColor {
+	} else if numSize <= 1 {
+		// This checks if there are multiple colors and 0 or 1 size
 		return "colors"
 	} else {
-		return ""
+		// This is for the case where both size and color have multiple variations
+		return "sizes-colors"
 	}
 }
 
@@ -111,7 +115,7 @@ func (u *Product) GetVariationCustomType() string {
 
 	if numSize <= 1 && numColor <= 1 {
 		// This checks if both size and color have 0 or 1 variation
-		return "0 color - 0 size"
+		return ""
 	} else if numSize > 1 && numColor <= 1 {
 		// This checks if there are multiple sizes and 0 or 1 color
 		return "sizes"
@@ -166,6 +170,9 @@ func (u *Product) MapSize(num int) *map[string]string {
 
 	sizes := make(map[string]string)
 	for _, size := range u.Variation.Sizes {
+		if size.Name == "CHINA" {
+			continue
+		}
 		sizes[size.ValueId] = size.Name
 	}
 

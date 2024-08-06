@@ -222,24 +222,47 @@ func (s *OpenAliexpressService) GetProduct(productID string) (*model.Product, er
 		skuImage := ""
 		skuColorId := ""
 		skuSizeId := ""
-		for _, skuProperty := range v.AESKUPropertyDtos.AESKUPropertyDTO {
+		skuColorName := ""
+		skuSizeName := ""
+
+		for i, skuProperty := range v.AESKUPropertyDtos.AESKUPropertyDTO {
+
 			if skuProperty.SKUImage != "" {
 				skuImage = findImage(variation.Colors, strconv.Itoa(skuProperty.PropertyValueID))
 				skuColorId = strconv.Itoa(skuProperty.PropertyValueID)
+				skuColorName = getColorName(variation.Colors, skuColorId)
 			} else {
-				skuSizeId = strconv.Itoa(skuProperty.PropertyValueID)
+				if i > 1 && strings.Contains(skuProperty.SKUPropertyName, "Main Stone Color") {
+				} else if i > 1 && strings.Contains(skuProperty.SKUPropertyName, "Ship") {
+				} else {
+					skuSizeId = strconv.Itoa(skuProperty.PropertyValueID)
+					skuSizeName = getSizeName(variation.Sizes, skuSizeId)
+				}
 			}
+
 		}
 
-		skus = append(skus, model.Sku{
-			SkuId:          v.SKUCode,
-			SkuAttr:        v.SKUAttr,
-			Price:          v.SKUPrice,
-			PromotionPrice: v.OfferSalePrice,
-			SkuImage:       skuImage,
-			SkuColorId:     skuColorId,
-			SkuSizeId:      skuSizeId,
-		})
+		isExist := false
+		for _, existSku := range skus {
+			if existSku.SkuColorId == skuColorId && existSku.SkuSizeId == skuSizeId {
+				s.logger.Infof("SKU %s already exists", existSku.SkuId)
+				isExist = true
+				break
+			}
+		}
+		if !isExist {
+			skus = append(skus, model.Sku{
+				SkuId:          v.SKUCode,
+				SkuAttr:        v.SKUAttr,
+				Price:          v.SKUPrice,
+				PromotionPrice: v.OfferSalePrice,
+				SkuImage:       skuImage,
+				SkuColorId:     skuColorId,
+				SkuSizeId:      skuSizeId,
+				ColorName:      skuColorName,
+				SizeName:       skuSizeName,
+			})
+		}
 	}
 
 	// split image urls by comma
@@ -314,7 +337,21 @@ func exactVariant(itemSkuInfo []AEItemSkuInfoDTO) model.Variation {
 	}
 
 	for _, v := range itemSkuInfo {
-		for _, skuProperty := range v.AESKUPropertyDtos.AESKUPropertyDTO {
+		var properties = v.AESKUPropertyDtos.AESKUPropertyDTO
+		var filtered []AESKUPropertyDTO
+		if len(v.AESKUPropertyDtos.AESKUPropertyDTO) > 2 {
+			for _, property := range properties {
+				// Check if SKUPropertyName is not "Ships From" or "Main Stone Color"
+				if property.SKUPropertyName != "Ships From" && property.SKUPropertyName != "Main Stone Color" {
+					filtered = append(filtered, property)
+				}
+			}
+
+		} else {
+			filtered = properties
+		}
+
+		for _, skuProperty := range filtered {
 
 			isExistColor := false
 			isExistSize := false
@@ -414,6 +451,24 @@ func findImage(colorsVar []model.VariationType, colorId string) string {
 	for _, color := range colorsVar {
 		if color.ValueId == colorId {
 			return color.Image
+		}
+	}
+	return ""
+}
+
+func getColorName(colorsVar []model.VariationType, colorId string) string {
+	for _, color := range colorsVar {
+		if color.ValueId == colorId {
+			return color.Name
+		}
+	}
+	return ""
+}
+
+func getSizeName(sizesVar []model.VariationType, sizeId string) string {
+	for _, size := range sizesVar {
+		if size.ValueId == sizeId {
+			return size.Name
 		}
 	}
 	return ""

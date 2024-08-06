@@ -2,6 +2,9 @@ package model
 
 import (
 	"go.mongodb.org/mongo-driver/bson"
+	"math"
+	"regexp"
+	"sort"
 	"strconv"
 	"time"
 )
@@ -50,6 +53,8 @@ type Sku struct {
 	SkuImage       string `json:"skuImage" bson:"sku_image"`
 	SkuColorId     string `json:"skuColorId" bson:"sku_color_id"`
 	SkuSizeId      string `json:"skuSizeId" bson:"sku_size_id"`
+	ColorName      string `json:"colorName" bson:"color_name"`
+	SizeName       string `json:"sizeName" bson:"size_name"`
 }
 
 type Seller struct {
@@ -134,7 +139,7 @@ func (u *Product) GetRating() float64 {
 	communicationRating, _ := strconv.ParseFloat(u.Seller.CommunicationRating, 64)
 	itemAsDescribed, _ := strconv.ParseFloat(u.Seller.ItemAsDescribed, 64)
 
-	return (shippingRating + communicationRating + itemAsDescribed) / 3
+	return math.Round((shippingRating+communicationRating+itemAsDescribed)/3*10) / 10
 }
 
 func (u *Product) MapColor(num int) *map[string]string {
@@ -206,27 +211,31 @@ func (u *Product) GetVariation(colors, sizes *map[string]string, sku Sku) (color
 }
 
 func (u *Product) SortSkuByColor() []Sku {
-	var sortedSkus []Sku
+	var finalSortedSkus []Sku
 	colors := u.MapColor(0)
 
 	if colors == nil {
 		return u.Skus
 	}
 
-	var keys []string
-	for key := range *colors {
-		keys = append(keys, key)
-	}
+	mapColorSkus := make(map[string][]Sku)
 
 	for color, _ := range *colors {
 		for _, sku := range u.Skus {
 			if sku.SkuColorId == color {
-				sortedSkus = append(sortedSkus, sku)
+				mapColorSkus[color] = append(mapColorSkus[color], sku)
 			}
 		}
 	}
 
-	return sortedSkus
+	for _, skus := range mapColorSkus {
+		sortSkusBySizeName(skus)
+
+		// Append the sorted slice to the final array
+		finalSortedSkus = append(finalSortedSkus, skus...)
+	}
+
+	return finalSortedSkus
 }
 
 func (u *Product) GetImageByColor(colorValueId string) string {
@@ -241,4 +250,36 @@ func (u *Product) GetImageByColor(colorValueId string) string {
 	}
 
 	return ""
+}
+
+func parseSizeName(sizeName string) (string, int) {
+	// Regex to match numbers at the start of the string
+	re := regexp.MustCompile(`^\d+`)
+	number := re.FindString(sizeName)
+
+	// If a number is found, convert it to an integer
+	if number != "" {
+		num, _ := strconv.Atoi(number)
+		return sizeName[len(number):], num
+	}
+
+	// If no number is found, return the string and a zero number
+	return sizeName, 0
+}
+
+// Custom sort function for alphanumeric sorting
+func sortSkusBySizeName(skus []Sku) {
+	sort.Slice(skus, func(i, j int) bool {
+		// Parse the size names
+		remainI, numI := parseSizeName(skus[i].SizeName)
+		remainJ, numJ := parseSizeName(skus[j].SizeName)
+
+		// Compare by numbers first
+		if numI != numJ {
+			return numI < numJ
+		}
+
+		// If numbers are equal, compare the remaining string lexicographically
+		return remainI < remainJ
+	})
 }

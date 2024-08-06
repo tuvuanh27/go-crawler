@@ -233,7 +233,6 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 				mapSize := product.MapSize(0)
 				mapColor := product.MapColor(0)
 				sortedSkus := product.SortSkuByColor()
-				log.Debugf("skus: %v", sortedSkus)
 
 				for i, sku := range sortedSkus {
 					row++ // Move to the next row for SKUs

@@ -230,7 +230,7 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 
 				f.SetCellStyle(sheetName, fmt.Sprintf("A%d", row), fmt.Sprintf("P%d", row), styleGreen)
 
-				mapSize := product.MapSize(0)
+				mapSize, _ := product.MapSize(0)
 				mapColor := product.MapColor(0)
 				sortedSkus := product.SortSkuByColor()
 
@@ -362,7 +362,8 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 				f.SetCellValue(sheetName, fmt.Sprintf("P%d", row), rating)
 
 				f.SetCellValue(sheetName, fmt.Sprintf("Q%d", row), product.GetVariationCustomType())
-				mapSize := product.MapSize(9)
+				mapSize, sortedArrSize := product.MapSize(9)
+				log.Debug("Map size: ", mapSize)
 				mapColor := product.MapColor(4)
 
 				varColorCol := []string{"R", "T", "V", "X"}
@@ -378,8 +379,8 @@ func exportExcelAliexpress(ctx context.Context, validator *validator.Validate) e
 					}
 				}
 				if mapSize != nil {
-					for _, size := range *mapSize {
-						f.SetCellValue(sheetName, fmt.Sprintf("%s%d", varSizeCol[sizeIndex], row), size)
+					for _ = range *mapSize {
+						f.SetCellValue(sheetName, fmt.Sprintf("%s%d", varSizeCol[sizeIndex], row), sortedArrSize[sizeIndex])
 						sizeIndex++
 					}
 

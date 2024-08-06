@@ -335,8 +335,8 @@ func exactVariant(itemSkuInfo []AEItemSkuInfoDTO) model.Variation {
 	if len(itemSkuInfo) == 1 && len(itemSkuInfo[0].AESKUPropertyDtos.AESKUPropertyDTO) == 0 {
 		return model.Variation{}
 	}
-
-	for i, v := range itemSkuInfo {
+	i := 1
+	for _, v := range itemSkuInfo {
 		var properties = v.AESKUPropertyDtos.AESKUPropertyDTO
 		var filtered []AESKUPropertyDTO
 		if len(v.AESKUPropertyDtos.AESKUPropertyDTO) > 2 {
@@ -381,12 +381,13 @@ func exactVariant(itemSkuInfo []AEItemSkuInfoDTO) model.Variation {
 
 				if existColorName(colors, name) {
 					name = name + " " + strconv.Itoa(i)
+					i++
 				}
 
 				colors = append(colors, model.VariationType{
 					ValueId:   strconv.Itoa(skuProperty.PropertyValueID),
 					SkuPropId: strconv.Itoa(skuProperty.SKUPropertyID),
-					Name:      name,
+					Name:      strings.Trim(name, " "),
 					Image:     utils.NewLink(skuProperty.SKUImage),
 				})
 			} else {
@@ -394,13 +395,16 @@ func exactVariant(itemSkuInfo []AEItemSkuInfoDTO) model.Variation {
 					sizes = append(sizes, model.VariationType{
 						ValueId:   strconv.Itoa(skuProperty.PropertyValueID),
 						SkuPropId: strconv.Itoa(skuProperty.SKUPropertyID),
-						Name:      skuProperty.SKUPropertyValue,
+						Name:      strings.Trim(skuProperty.SKUPropertyValue, " "),
 						Image:     utils.NewLink(skuProperty.SKUImage),
 					})
 				}
 			}
 		}
 	}
+
+	model.SortStruct(colors, "Name")
+	model.SortStruct(sizes, "Name")
 
 	return model.Variation{
 		Sizes:  sizes,

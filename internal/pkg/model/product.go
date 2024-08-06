@@ -3,7 +3,7 @@ package model
 import (
 	"go.mongodb.org/mongo-driver/bson"
 	"math"
-	"regexp"
+	"reflect"
 	"sort"
 	"strconv"
 	"time"
@@ -168,10 +168,12 @@ func (u *Product) MapColor(num int) *map[string]string {
 	return &colors
 }
 
-func (u *Product) MapSize(num int) *map[string]string {
+func (u *Product) MapSize(num int) (*map[string]string, []string) {
 	if len(u.Variation.Sizes) == 0 {
-		return nil
+		return nil, []string{}
 	}
+	arrSortedSize := make([]string, 0)
+	arrIntSize := make([]int, 0)
 
 	sizes := make(map[string]string)
 	for _, size := range u.Variation.Sizes {
@@ -179,6 +181,21 @@ func (u *Product) MapSize(num int) *map[string]string {
 			continue
 		}
 		sizes[size.ValueId] = size.Name
+		arrSortedSize = append(arrSortedSize, size.Name)
+	}
+	// check if arrSortedSize can convert to int
+	for _, size := range arrSortedSize {
+		if value, err := strconv.Atoi(size); err == nil {
+			arrIntSize = append(arrIntSize, value)
+		}
+	}
+	if len(arrIntSize) > 0 {
+		sort.Ints(arrIntSize)
+		for i, value := range arrIntSize {
+			arrSortedSize[i] = strconv.Itoa(value) // convert int to string with
+		}
+	} else {
+		sort.Strings(arrSortedSize)
 	}
 
 	// if num > 0 , only get x first sizes
@@ -192,10 +209,12 @@ func (u *Product) MapSize(num int) *map[string]string {
 			newSizes[key] = value
 			i++
 		}
-		return &newSizes
+		return &newSizes, arrSortedSize
 	}
 
-	return &sizes
+	// sort array size
+
+	return &sizes, arrSortedSize
 }
 
 func (u *Product) GetVariation(colors, sizes *map[string]string, sku Sku) (color, size string) {
@@ -219,17 +238,23 @@ func (u *Product) SortSkuByColor() []Sku {
 	}
 
 	mapColorSkus := make(map[string][]Sku)
+	colorsName := make([]string, 0, len(*colors))
 
-	for color, _ := range *colors {
+	for key, color := range *colors {
+		colorsName = append(colorsName, color)
 		for _, sku := range u.Skus {
-			if sku.SkuColorId == color {
+			if sku.SkuColorId == key {
 				mapColorSkus[color] = append(mapColorSkus[color], sku)
 			}
 		}
 	}
 
-	for _, skus := range mapColorSkus {
-		sortSkusBySizeName(skus)
+	// sort keys
+	sort.Strings(colorsName)
+
+	for _, colorName := range colorsName {
+		skus := mapColorSkus[colorName]
+		SortStruct[Sku](skus, "SizeName")
 
 		// Append the sorted slice to the final array
 		finalSortedSkus = append(finalSortedSkus, skus...)
@@ -252,34 +277,78 @@ func (u *Product) GetImageByColor(colorValueId string) string {
 	return ""
 }
 
-func parseSizeName(sizeName string) (string, int) {
-	// Regex to match numbers at the start of the string
-	re := regexp.MustCompile(`^\d+`)
-	number := re.FindString(sizeName)
-
-	// If a number is found, convert it to an integer
-	if number != "" {
-		num, _ := strconv.Atoi(number)
-		return sizeName[len(number):], num
+// Helper function to parse the numeric prefix
+func parseNumericPrefix(numericPrefix string) int {
+	if num, err := strconv.Atoi(numericPrefix); err == nil {
+		return num
 	}
-
-	// If no number is found, return the string and a zero number
-	return sizeName, 0
+	return 0
 }
 
-// Custom sort function for alphanumeric sorting
-func sortSkusBySizeName(skus []Sku) {
-	sort.Slice(skus, func(i, j int) bool {
-		// Parse the size names
-		remainI, numI := parseSizeName(skus[i].SizeName)
-		remainJ, numJ := parseSizeName(skus[j].SizeName)
+func parseSizeName(name string) (string, int) {
+	// Try to convert the entire string to an integer
+	if num, err := strconv.Atoi(name); err == nil {
+		return "", num
+	}
 
-		// Compare by numbers first
-		if numI != numJ {
-			return numI < numJ
+	// Initialize a variable to store the numeric prefix
+	var numericPrefix string
+
+	// Iterate over the string to find a numeric prefix
+	for i, char := range name {
+		if char >= '0' && char <= '9' {
+			numericPrefix += string(char)
+		} else {
+			// Break at the first non-numeric character
+			return name[i:], parseNumericPrefix(numericPrefix)
+		}
+	}
+
+	// If the whole string was numeric
+	return "", parseNumericPrefix(numericPrefix)
+}
+
+func SortStruct[T any](structs []T, fieldName string) {
+	sort.Slice(structs, func(i, j int) bool {
+		// Use reflection to get the field value
+		valI := reflect.ValueOf(structs[i])
+		valJ := reflect.ValueOf(structs[j])
+
+		// Check if the field exists and is a string
+		fieldI := valI.FieldByName(fieldName)
+		fieldJ := valJ.FieldByName(fieldName)
+
+		if fieldI.IsValid() && fieldJ.IsValid() && fieldI.Kind() == reflect.String && fieldJ.Kind() == reflect.String {
+			// Parse the size names
+			remainI, numI := parseSizeName(fieldI.String())
+			remainJ, numJ := parseSizeName(fieldJ.String())
+
+			// Compare by numbers first
+			if numI != numJ {
+				return numI < numJ
+			}
+
+			// If numbers are equal, compare the remaining string lexicographically
+			return remainI < remainJ
 		}
 
-		// If numbers are equal, compare the remaining string lexicographically
-		return remainI < remainJ
+		// If field is not valid or not a string, return false
+		return false
 	})
+}
+
+func extractNumericPrefix(name string) int {
+	var numStr string
+	for _, char := range name {
+		if char >= '0' && char <= '9' {
+			numStr += string(char)
+		} else {
+			break
+		}
+	}
+
+	if num, err := strconv.Atoi(numStr); err == nil {
+		return num
+	}
+	return 0
 }

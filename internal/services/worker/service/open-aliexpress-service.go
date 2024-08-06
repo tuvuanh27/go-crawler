@@ -336,7 +336,7 @@ func exactVariant(itemSkuInfo []AEItemSkuInfoDTO) model.Variation {
 		return model.Variation{}
 	}
 
-	for _, v := range itemSkuInfo {
+	for i, v := range itemSkuInfo {
 		var properties = v.AESKUPropertyDtos.AESKUPropertyDTO
 		var filtered []AESKUPropertyDTO
 		if len(v.AESKUPropertyDtos.AESKUPropertyDTO) > 2 {
@@ -378,6 +378,11 @@ func exactVariant(itemSkuInfo []AEItemSkuInfoDTO) model.Variation {
 				} else {
 					name = skuProperty.SKUPropertyValue
 				}
+
+				if existColorName(colors, name) {
+					name = name + " " + strconv.Itoa(i)
+				}
+
 				colors = append(colors, model.VariationType{
 					ValueId:   strconv.Itoa(skuProperty.PropertyValueID),
 					SkuPropId: strconv.Itoa(skuProperty.SKUPropertyID),
@@ -472,4 +477,13 @@ func getSizeName(sizesVar []model.VariationType, sizeId string) string {
 		}
 	}
 	return ""
+}
+
+func existColorName(colorsVar []model.VariationType, colorName string) bool {
+	for _, color := range colorsVar {
+		if color.Name == colorName {
+			return true
+		}
+	}
+	return false
 }

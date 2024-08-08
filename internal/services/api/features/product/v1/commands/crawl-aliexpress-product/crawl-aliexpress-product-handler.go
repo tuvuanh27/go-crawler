@@ -27,9 +27,9 @@ func (c *CrawlAliexpressProductHandler) Handle(ctx context.Context, command *Cra
 	}
 
 	// chunk payload to 10 items
-	if len(payload) > 20 {
-		for i := 0; i < len(payload); i += 20 {
-			end := i + 20
+	if len(payload) > 10 {
+		for i := 0; i < len(payload); i += 10 {
+			end := i + 10
 			if end > len(payload) {
 				end = len(payload)
 			}
